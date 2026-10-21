@@ -262,12 +262,14 @@ extension-only exclusions (including Superpowers exclusions) are preserved, not 
   - **Managed** (npm/git): installed by Pi's package manager into `~/.pi/agent/npm` / `~/.pi/agent/git` (project scope: `.pi/npm` / `.pi/git`), updated from extmgr or with `pi update --extensions`, supports Pi package manifest/convention loading
   - **Local** (standalone): Copies to `~/.pi/agent/extensions/{package}/`, so it only accepts runnable standalone layouts (manifest-declared/root entrypoints), requires `tar` on `PATH`, and rejects packages whose runtime `dependencies` are not already bundled with the package contents
 - **Scheduled update-check schedule is persistent**: `/extensions auto-update 1d` stays active across future Pi sessions and is restored when switching sessions.
+  - With scheduled checks disabled, passive footer/status refreshes do not query package registries. Previously cached update badges remain until explicitly refreshed; markers for removed packages are pruned locally.
 - **Scheduled update-check badges cover npm + git packages**: extmgr now uses pi's package manager APIs for structured update detection instead of parsing `pi list` output.
 - **Settings/cache writes are hardened**: extmgr serializes writes and uses safe file replacement to reduce JSON corruption issues.
 - **Invalid JSON is handled safely**: malformed `auto-update.json` / metadata cache files are backed up and reset; invalid `.pi/settings.json` is not overwritten during package-extension toggles.
 - **Reload is built-in**: When extmgr asks to reload, it calls `ctx.reload()` directly. Successful mutations persist a versioned reload-required marker; cancellation and failure do not. The marker survives reopening the manager and clears after a successful reload.
 - **Saved manager state**: Views, favorites, recent items, and bulk selections are stored atomically in `~/.pi/agent/.extmgr-cache/views-<project>.json`. Named profiles are stored in `profiles.json`; project policies load from `.pi/extmgr-policy.json`.
 - **Trash lifecycle**: Local removals move to `~/.pi/agent/.extmgr-trash/` with persistent records. Undo refuses to overwrite a replacement file, and expired or missing records are cleaned up.
+  - Removal is restricted to configured extension directories. Entries inside symlinked development directories cannot be removed through the manager; remove the directory link manually to leave the checkout untouched.
 - **Metadata safety**: Missing compatibility, provenance, checksum, or target-version metadata is reported as `unknown`, never `safe`. Target-version previews, exact target badges, and update-policy/maintenance-window enforcement are intentionally deferred because Pi does not expose structured target metadata.
 
 ## Releasing

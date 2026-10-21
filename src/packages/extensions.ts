@@ -113,6 +113,12 @@ function updateExtensionMarkers(
   existingTokens: string[] | undefined,
   changes: ReadonlyMap<string, State>
 ): string[] {
+  if (existingTokens?.length === 0) {
+    return [...changes]
+      .filter(([, target]) => target === "enabled")
+      .map(([extensionPath]) => extensionPath)
+      .sort((a, b) => a.localeCompare(b));
+  }
   const nextTokens: string[] = [];
 
   for (const token of existingTokens ?? []) {
@@ -196,9 +202,10 @@ export async function applyPackageExtensionStateChanges(
       normalizedChanges.set(normalizeRelativePath(change.extensionPath), change.target);
     }
 
+    const preserveEmptyFilter = packageEntry.extensions?.length === 0;
     packageEntry.extensions = updateExtensionMarkers(packageEntry.extensions, normalizedChanges);
 
-    if (packageEntry.extensions.length === 0) {
+    if (packageEntry.extensions.length === 0 && !preserveEmptyFilter) {
       delete packageEntry.extensions;
     }
     const normalizedPackageEntry =

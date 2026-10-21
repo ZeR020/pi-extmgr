@@ -77,12 +77,11 @@ export async function updateExtmgrStatus(
       statusParts.push(autoUpdateStatus);
     }
 
-    // Remove markers for uninstalled packages first. If any cached markers
-    // remain, reconcile them with a live package-manager check so updates made
-    // outside extmgr do not leave stale badges and attention prompts behind.
+    // Prune removed packages locally. A passive status refresh must not start
+    // network checks when the user has disabled scheduled checking.
     const knownUpdates = autoUpdateConfig.updatesAvailable ?? [];
     let validUpdates = filterStaleUpdates(knownUpdates, packages, ctx.cwd);
-    if (validUpdates.length > 0) {
+    if (validUpdates.length > 0 && autoUpdateConfig.enabled && autoUpdateConfig.intervalMs > 0) {
       validUpdates = filterStaleUpdates(
         [...(await refreshKnownUpdates(pi, ctx))],
         packages,

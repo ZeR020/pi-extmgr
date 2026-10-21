@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { handleTrashSubcommand } from "../src/commands/trash.js";
-import { removeLocalExtension } from "../src/extensions/discovery.js";
+import { discoverExtensions, removeLocalExtension } from "../src/extensions/discovery.js";
 import {
   listExtensionTrash,
   movePath,
@@ -17,7 +17,9 @@ import { createMockHarness } from "./helpers/mocks.js";
 void test("removeLocalExtension moves files to trash and exposes undo", async () => {
   const home = await mkdtemp(join(tmpdir(), "pi-extmgr-trash-home-"));
   const previousHome = process.env.HOME;
+  const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
   process.env.HOME = home;
+  process.env.PI_CODING_AGENT_DIR = join(home, ".pi", "agent");
   const source = join(home, ".pi", "agent", "extensions", "demo.ts");
   try {
     await mkdir(join(home, ".pi", "agent", "extensions"), { recursive: true });
@@ -34,7 +36,64 @@ void test("removeLocalExtension moves files to trash and exposes undo", async ()
   } finally {
     if (previousHome === undefined) delete process.env.HOME;
     else process.env.HOME = previousHome;
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
     await rm(home, { recursive: true, force: true });
+  }
+});
+
+for (const entrypoint of ["src/index.ts", "src/custom.ts"]) {
+  void test(`removing linked directory entry ${entrypoint} leaves source files untouched`, async () => {
+    const root = await mkdtemp(join(tmpdir(), "pi-extmgr-linked-removal-"));
+    const cwd = join(root, "project");
+    const checkout = join(root, "checkout");
+    const link = join(cwd, ".pi", "extensions", "dev");
+    try {
+      await mkdir(join(checkout, "src"), { recursive: true });
+      await mkdir(join(cwd, ".pi", "extensions"), { recursive: true });
+      await writeFile(
+        join(checkout, "package.json"),
+        JSON.stringify({
+          pi: { extensions: ["src/index.ts", "src/custom.ts"] },
+        })
+      );
+      await writeFile(join(checkout, "src", "index.ts"), "// index source\n");
+      await writeFile(join(checkout, "src", "custom.ts"), "// other source\n");
+      await symlink(checkout, link, "dir");
+      const activePath = join(link, entrypoint);
+      const entries = await discoverExtensions(cwd, { projectTrusted: true });
+      assert.ok(entries.some((entry) => entry.activePath === activePath));
+
+      // The action menu passes paths only, so safety must not depend on link metadata.
+      const result = await removeLocalExtension(
+        { activePath, disabledPath: `${activePath}.disabled` },
+        cwd
+      );
+      assert.equal(result.ok, false);
+      assert.match(result.ok ? "" : result.error, /symlinked extension directory/);
+      assert.equal(await readFile(join(checkout, "src", "index.ts"), "utf8"), "// index source\n");
+      assert.equal(await readFile(join(checkout, "src", "custom.ts"), "utf8"), "// other source\n");
+      assert.equal((await lstat(link)).isSymbolicLink(), true);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+}
+
+void test("removeLocalExtension refuses paths outside configured extension roots", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "pi-extmgr-outside-removal-"));
+  const activePath = join(cwd, "source.ts");
+  try {
+    await writeFile(activePath, "// unrelated source\n");
+    const result = await removeLocalExtension(
+      { activePath, disabledPath: `${activePath}.disabled` },
+      cwd
+    );
+    assert.equal(result.ok, false);
+    assert.match(result.ok ? "" : result.error, /outside.*extension/i);
+    assert.equal(await readFile(activePath, "utf8"), "// unrelated source\n");
+  } finally {
+    await rm(cwd, { recursive: true, force: true });
   }
 });
 

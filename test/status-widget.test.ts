@@ -161,6 +161,36 @@ void test("a pending status refresh cannot restore an opted-out footer", async (
   });
 });
 
+void test("status stays offline when scheduled checks are disabled", async () => {
+  await withIsolatedState(async () => {
+    let checks = 0;
+    const restoreCatalog = mockPackageCatalog({
+      packages: [{ source: "npm:demo", name: "demo", scope: "global" }],
+      checkForAvailableUpdatesImpl: () => {
+        checks += 1;
+        return [];
+      },
+    });
+    try {
+      const { pi, ctx, entries, statuses, widgets } = createMockHarness({ hasUI: true });
+      entries.push({
+        type: "custom",
+        customType: "extmgr-auto-update",
+        data: { enabled: false, intervalMs: 0, displayText: "off", updatesAvailable: ["npm:demo"] },
+      });
+
+      await updateExtmgrStatus(ctx, pi);
+
+      assert.equal(checks, 0, "a passive status refresh must not query the package registry");
+      assert.match(statuses.get("extmgr") ?? "", /scheduled checks off/);
+      assert.match(statuses.get("extmgr") ?? "", /1 update/);
+      assert.ok(widgets.get("extmgr-attention")?.some((line) => line.includes("1 update")));
+    } finally {
+      restoreCatalog();
+    }
+  });
+});
+
 void test("workspace titles are set per screen and restored to pi's format", () => {
   const { ctx, titles } = createMockHarness({ hasUI: true, cwd: "/workspace/demo-project" });
 

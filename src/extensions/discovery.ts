@@ -20,6 +20,7 @@ import {
   getProjectExtensionsDir,
 } from "../utils/pi-paths.js";
 import {
+  isSafeRelativePath,
   normalizeRelativePath,
   resolveRelativePathSelection,
 } from "../utils/relative-path-selection.js";
@@ -507,6 +508,23 @@ export async function removeLocalExtension(
 
     const existingPath = activeExists ? entry.activePath : entry.disabledPath;
     const parentDir = dirname(existingPath);
+    const root = [globalRoot, projectRoot].find((candidate) =>
+      isSafeRelativePath(relative(candidate, existingPath))
+    );
+    if (!root) {
+      return {
+        ok: false,
+        error: "Cannot remove a file outside the configured extension directories.",
+      };
+    }
+    const expectedParent = resolve(await realpath(root), relative(root, parentDir));
+    if ((await realpath(parentDir)) !== expectedParent) {
+      return {
+        ok: false,
+        error:
+          "Cannot remove an entry in a symlinked extension directory. Remove the directory link instead.",
+      };
+    }
     const normalizedBase = basename(existingPath).replace(/\.disabled$/i, "");
     const isIndexFile = /^index\.(ts|js)$/i.test(normalizedBase);
     const isInsideExtensionDir = parentDir !== globalRoot && parentDir !== projectRoot;
