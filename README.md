@@ -260,6 +260,7 @@ extension-only exclusions (including Superpowers exclusions) are preserved, not 
   - **Managed** (npm/git): installed by Pi's package manager into `~/.pi/agent/npm` / `~/.pi/agent/git` (project scope: `.pi/npm` / `.pi/git`), updated from extmgr or with `pi update --extensions`, supports Pi package manifest/convention loading
   - **Local** (standalone): Copies to `~/.pi/agent/extensions/{package}/`, so it only accepts runnable standalone layouts (manifest-declared/root entrypoints), requires `tar` on `PATH`, and rejects packages whose runtime `dependencies` are not already bundled with the package contents
 - **Scheduled update-check schedule is persistent**: `/extensions auto-update 1d` stays active across future Pi sessions and is restored when switching sessions.
+  - With scheduled checks disabled, passive footer/status refreshes do not query package registries. Previously cached update badges remain until explicitly refreshed; markers for removed packages are pruned locally.
 - **Scheduled update-check badges cover npm + git packages**: extmgr now uses pi's package manager APIs for structured update detection instead of parsing `pi list` output.
 - **Settings/cache writes are hardened**: extmgr serializes writes and uses safe file replacement to reduce JSON corruption issues.
 - **Invalid JSON is handled safely**: malformed `auto-update.json` / metadata cache files are backed up and reset; invalid `.pi/settings.json` is not overwritten during package-extension toggles.
