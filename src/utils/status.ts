@@ -13,7 +13,7 @@ import { isProjectTrusted } from "./mode.js";
 import { normalizePackageIdentity } from "./package-source.js";
 import { getProjectConfigDir } from "./pi-paths.js";
 import { readReloadState } from "./reload-state.js";
-import { getAutoUpdateConfigAsync, saveAutoUpdateConfig } from "./settings.js";
+import { getAutoUpdateConfigAsync, getShowFooterStatus, saveAutoUpdateConfig } from "./settings.js";
 
 type CatalogInstalledPackages = Awaited<ReturnType<PackageCatalog["listInstalledPackages"]>>;
 
@@ -98,7 +98,7 @@ export async function updateExtmgrStatus(
       statusParts.push(`${validUpdates.length} update${validUpdates.length === 1 ? "" : "s"}`);
     }
 
-    if (statusParts.length > 0) {
+    if ((await getShowFooterStatus()) && statusParts.length > 0) {
       ctx.ui.setStatus("extmgr", ctx.ui.theme.fg("dim", statusParts.join(" • ")));
     } else {
       ctx.ui.setStatus("extmgr", undefined);

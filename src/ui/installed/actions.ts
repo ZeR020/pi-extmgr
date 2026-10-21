@@ -18,8 +18,9 @@ import {
 import { promptAutoUpdateWizard } from "../../utils/auto-update.js";
 import { parseChoiceByLabel } from "../../utils/command.js";
 import { logExtensionToggle } from "../../utils/history.js";
-import { isProjectTrusted } from "../../utils/mode.js";
+import { isProjectTrusted, tryOperation } from "../../utils/mode.js";
 import { markReloadRequired } from "../../utils/reload-state.js";
+import { getShowFooterStatus, setShowFooterStatus } from "../../utils/settings.js";
 import { updateExtmgrStatus } from "../../utils/status.js";
 import { confirmReload } from "../../utils/ui-helpers.js";
 import { type readSavedViews } from "../../utils/views.js";
@@ -152,6 +153,7 @@ const PALETTE_OPTIONS = {
   search: "Search packages",
   updateAll: "Update all packages",
   autoUpdate: "Scheduled update checks",
+  footer: "Show footer status",
   help: "Help",
   back: "Back",
 } as const;
@@ -306,10 +308,29 @@ export async function handleUnifiedAction(
   }
 
   if (result.type === "menu") {
-    const choice = parseChoiceByLabel(
-      PALETTE_OPTIONS,
-      await ctx.ui.select("Extmgr workspace", Object.values(PALETTE_OPTIONS))
+    const visible = await getShowFooterStatus(() =>
+      ctx.ui.notify("Cannot read extmgr preferences; footer remains on.", "warning")
     );
+    const options = {
+      ...PALETTE_OPTIONS,
+      footer: `Show footer status: ${visible ? "on" : "off"} (toggle)`,
+    };
+    const choice = parseChoiceByLabel(
+      options,
+      await ctx.ui.select("Extmgr workspace", Object.values(options))
+    );
+    if (choice === "footer") {
+      await tryOperation(
+        ctx,
+        async () => {
+          await setShowFooterStatus(!visible);
+          if (visible) ctx.ui.setStatus("extmgr", undefined);
+          else await updateExtmgrStatus(ctx, pi);
+        },
+        "Cannot change footer status"
+      );
+      return "resume";
+    }
 
     const destinationByAction: Partial<Record<PaletteAction, QuickDestination>> = {
       discover: "discover",

@@ -36,6 +36,7 @@ export function buildHelpLines(): string[] {
     "  t                    Scheduled update checks settings",
     "  P / M                Open workspace screens and actions",
     "                         Discover · Profiles · Health",
+    "                         Show footer status: on/off (toggle)",
     "",
     "Sources and safety",
     "  Every row shows its kind, scope, and effective state inline",

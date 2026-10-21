@@ -1,5 +1,5 @@
 /**
- * Auto-update settings storage
+ * Manager settings storage
  * Persists to disk so config survives across pi sessions.
  */
 
@@ -45,6 +45,57 @@ let settingsWriteQueue: Promise<void> = Promise.resolve();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+let footerPreferenceRevision = 0;
+
+async function readFooterPreferences(file: string): Promise<Record<string, unknown>> {
+  try {
+    const value: unknown = JSON.parse(await readFile(file, "utf8"));
+    if (!isRecord(value)) throw new Error("Invalid extmgr preferences: expected an object.");
+    return value;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
+    throw error;
+  }
+}
+
+export async function getShowFooterStatus(onReadError?: () => void): Promise<boolean> {
+  try {
+    const file = join(settingsDir(), "preferences.json");
+    for (;;) {
+      const revision = footerPreferenceRevision;
+      const preferences = await readFooterPreferences(file);
+      // Save may replace the file while a read still holds the old contents.
+      if (revision === footerPreferenceRevision) return preferences.showFooterStatus !== false;
+    }
+  } catch {
+    if (onReadError) onReadError();
+    else logWarning("Cannot read extmgr preferences; keeping footer status visible.");
+    return true;
+  }
+}
+
+export function setShowFooterStatus(visible: boolean): Promise<void> {
+  const file = join(settingsDir(), "preferences.json");
+  const write = settingsWriteQueue.then(async () => {
+    const preferences = await readFooterPreferences(file);
+    await mkdir(settingsDir(), { recursive: true });
+    const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
+    try {
+      await writeFile(
+        temporary,
+        `${JSON.stringify({ ...preferences, showFooterStatus: visible }, null, 2)}\n`,
+        { mode: 0o600, flag: "wx" }
+      );
+      await rename(temporary, file);
+      footerPreferenceRevision += 1;
+    } finally {
+      await rm(temporary, { force: true });
+    }
+  });
+  settingsWriteQueue = write.catch(() => undefined);
+  return write;
 }
 
 function isValidStringArray(value: unknown): value is string[] {
