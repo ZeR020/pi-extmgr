@@ -147,9 +147,7 @@ sees them. Use `↑↓`, start Pi with `--tui-mode regular`, or rebind `tui.altS
 `tui.altScreen.pageDown`, `tui.altScreen.top` and `tui.altScreen.bottom` in `keybindings.json`.
 Report panels (help, details, doctor, history) are overlays and keep these keys.
 
-### Manager settings
-
-Open `/extensions`, press `m` (or `P`), then choose **Settings**. **Show footer status** is **on by default**; turn it off to hide only extmgr's `pkg count • scheduled checks • updates` line. Press `Space` to toggle, `Enter` to save, or `Esc` to discard. The choice applies immediately without reloading and persists per user across projects and sessions in `~/.pi/agent/.extmgr-cache/preferences.json` (`showFooterStatus`). Update/reload attention alerts and scheduled checking are unchanged.
+Open `/extensions`, press `m` (or `P`), and choose **Show footer status: on/off (toggle)** to hide or restore extmgr's package/schedule line. It defaults to **on**, applies immediately, and persists per user across sessions. Update/reload attention alerts and scheduled checking are unchanged.
 
 ### Commands
 
