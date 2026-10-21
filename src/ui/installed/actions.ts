@@ -152,6 +152,7 @@ const PALETTE_OPTIONS = {
   search: "Search packages",
   updateAll: "Update all packages",
   autoUpdate: "Scheduled update checks",
+  settings: "Settings",
   help: "Help",
   back: "Back",
 } as const;
@@ -166,6 +167,7 @@ type QuickDestination =
   | "search"
   | "update-all"
   | "auto-update"
+  | "settings"
   | "help";
 
 const QUICK_DESTINATION_LABELS: Record<QuickDestination, string> = {
@@ -176,6 +178,7 @@ const QUICK_DESTINATION_LABELS: Record<QuickDestination, string> = {
   search: "Search",
   "update-all": "Update",
   "auto-update": "Scheduled update checks",
+  settings: "Settings",
   help: "Help",
 };
 
@@ -187,6 +190,11 @@ async function navigateWithPendingGuard(
   ctx: ExtensionCommandContext,
   pi: ExtensionAPI
 ): Promise<"reload" | "resume" | "stay" | "exit"> {
+  if (destination === "settings") {
+    const { showManagerSettings } = await import("../settings.js");
+    await showManagerSettings(ctx, pi);
+    return "resume";
+  }
   // Help is a transient peek, not a navigation: never disturb staged toggles.
   if (destination === "help") {
     await showHelp(ctx);
@@ -319,6 +327,7 @@ export async function handleUnifiedAction(
       search: "search",
       updateAll: "update-all",
       autoUpdate: "auto-update",
+      settings: "settings",
       help: "help",
     };
 
