@@ -28,11 +28,20 @@ async function readPreferences(file: string): Promise<Record<string, unknown>> {
   return value as Record<string, unknown>;
 }
 
-export async function getShowFooterStatus(): Promise<boolean> {
+let preferenceRevision = 0;
+
+export async function getShowFooterStatus(onReadError?: () => void): Promise<boolean> {
   try {
-    return (await readPreferences(preferencesFile())).showFooterStatus !== false;
+    const file = preferencesFile();
+    for (;;) {
+      const revision = preferenceRevision;
+      const preferences = await readPreferences(file);
+      // Save may replace the file while this read still holds the old contents.
+      if (revision === preferenceRevision) return preferences.showFooterStatus !== false;
+    }
   } catch {
-    logWarning("Cannot read extmgr preferences; keeping footer status visible.");
+    if (onReadError) onReadError();
+    else logWarning("Cannot read extmgr preferences; keeping footer status visible.");
     return true;
   }
 }
@@ -52,6 +61,7 @@ export function setShowFooterStatus(visible: boolean): Promise<void> {
         { mode: 0o600, flag: "wx" }
       );
       await rename(temporary, file);
+      preferenceRevision += 1;
     } finally {
       await rm(temporary, { force: true });
     }

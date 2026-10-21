@@ -18,7 +18,12 @@ export async function showManagerSettings(
   await tryOperation(
     ctx,
     async () => {
-      const initial = await getShowFooterStatus();
+      const initial = await getShowFooterStatus(() => {
+        ctx.ui.notify(
+          "Extmgr preferences cannot be read. Keeping footer status on; invalid preferences will not be overwritten.",
+          "warning"
+        );
+      });
       const result = await runCustomUI(ctx, "Extmgr settings", () =>
         ctx.ui.custom<SettingsResult>((tui, theme, keybindings, done) => {
           let visible = initial;
